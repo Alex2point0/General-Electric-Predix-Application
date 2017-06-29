@@ -28,8 +28,8 @@ predix.initializeToken().then(() => {
     var report = [];
     var promises = [];
     for (var i = 0; i < result.locations.length; i++) {
-      var lane = result.locations[i];
-      promises.push(getPedestrianPerSecond(lane, boundary1, boundary2, options))
+      var crosswalk = result.locations[i];
+      promises.push(getPedestrianPerSecond(crosswalk, boundary1, boundary2, options))
     }
     Promise.all(promises).then((responses) => {
       responses.forEach((response) => {
@@ -40,17 +40,38 @@ predix.initializeToken().then(() => {
   });
 });
 
-function getPedestrianPerSecond(lane, boundary1, boundary2, options) {
+function getPedestrianPerSecond(crosswalk, boundary1, boundary2, options) {
   return new Promise((resolve, reject) => {
-    lane.listCrosswalkAssets(boundary1, boundary2, options).then((assetList) => {
+    crosswalk.listCrosswalkAssets(boundary1, boundary2, options).then((assetList) => {
       var asset = assetList[0];
 
       // Get last page of Vehicles In and Vehicle Out event since the last 24h for the given asset
       var endDate = new Date();
       var endTime = endDate.getTime();
       var startTime = endTime - (24 * 3600000);
-      asset.crosswalk(startTime, endTime, options).then((results)=>{
-        resolve(results);
+
+      var options = {
+        "size": 1,
+        "page": 2000000
+      }
+
+      var pIn;
+      var pOut;
+
+      asset.listPedestrianIn(startTime, endTime, options).then((response)=> {
+        pIn = response;
+        asset.listPedestrianOut(startTime, endTime, options).then((response) => {
+          pOut = response;
+          var pedestriansWithin = pIn-pOut;
+          resolve({
+            spot: crosswalk["location-uid"],
+            location: crosswalk.coordinate,
+            totalPedestrianIn: pIn,
+            totalPedestrianOut: pOut,
+            pedestriansWithin: pedestriansWithin,
+            pedestriansPerSecond: pIn/1000
+          });
+        })
       });
 
     });

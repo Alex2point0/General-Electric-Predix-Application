@@ -7,6 +7,7 @@ execute=authenticated
 var location = require("./location.js");
 var mappings = require("../mappings.js");
 var pedestrianasset = require("../pedestrianasset.js");
+var predixconfig = require("./../config.js");
 
 /**
  * Class that represents parking Crosswalk entities.
@@ -33,7 +34,7 @@ Crosswalk.prototype = new location();
 * @method listCrosswalkAssets
 * @return {Array} an array of PedestrianAssets that are monitoring that crosswalk.
 */
-Crosswalk.prototype.listCrosswalkAssets = function(){
+Crosswalk.prototype.listCrosswalkAssets = function(boundary1, boundary2, options){
   return new Promise((resolve, reject) => {
     var boundary = boundary1 + "," + boundary2;
     options['queryType'] = 'eventType';
@@ -42,17 +43,16 @@ Crosswalk.prototype.listCrosswalkAssets = function(){
     options['zoneId'] = predixconfig.services["pedestrian"].zoneId;
 
     if(!options['queryValue']  || options['queryValue'] == ""){
-      options['queryValue'] = mappings.eventTypes.PEDEVT;
+      options['queryValue'] = mappings.eventTypes.TFEVT;
       //+ "," + mappings.eventTypes.PKIN;
     }
-    this.listAssets(options).then((assets) =>{
-      console.log("List crosswalk assets " + JSON.stringify(assets));
-      var parsedAssets = [];;
-      for(var i=0;i < assets.length ;i++){
-        parsedAssets.push(new pedestrianasset(assets[i],this.client));
+    this.listAssets(options).then((assets) => {
+      var parsedAssets = [];
+      for (var i = 0; i < assets.length; i++) {
+        parsedAssets.push(new pedestrianasset(assets[i], this.client));
       }
       resolve(parsedAssets);
     })
   });
-}
+};
 module.exports = Crosswalk;

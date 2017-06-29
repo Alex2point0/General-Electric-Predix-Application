@@ -40,31 +40,15 @@ PedestrianAsset.prototype = new asset();
 **/
 PedestrianAsset.prototype.listPedestrianIn = function(startTime,endTime,options){
   return new Promise((resolve, reject) => {
-    if(options == null){
-      options = {};
-    }
-    var page = options.page;
-    var size = options.size;
-
-    var params = {
-      "serviceType":"pedestrian",
-      "eventType":mappings.eventTypes.SFIN,
-      "startTime" :startTime,
-      "endTime":endTime
-    };
-
-    if(size != null){
-      params["size"] = size;
-    }
-    if(page != null){
-      params["page"] = page;
-    }
-    this.getEvents(params).then((response) => {
+    options["serviceType"] = "pedestrian";
+    options["eventType"] = mappings.eventTypes.PEDEVT;
+    options["startTime"] = startTime;
+    options["endTime"] = endTime;
+    this.getEvents(options).then((response) =>{
       resolve(response);
-    });
-
-  });
-};
+    })
+  })
+}
 
 
 /**
@@ -82,31 +66,15 @@ PedestrianAsset.prototype.listPedestrianIn = function(startTime,endTime,options)
 *
 **/
 
-PedestrianAsset.prototype.listPedestrianOut = function(startTime,endTime,options){
+PedestrianAsset.prototype.listPedestrianOut = function(startTime,endTime,options) {
   return new Promise((resolve, reject) => {
-    if(options == null){
-      options = {};
-    }
-
-    var page = options.page;
-    var size = options.size;
-
-    var params = {
-      "serviceType":"pedestrian",
-      "eventType":mappings.eventTypes.SFOUT,
-      "startTime" :startTime,
-      "endTime":endTime
-    };
-
-    if(size != null){
-      params["size"] = size;
-    }
-    if(page != null){
-      params["page"] = page;
-    }
-    this.getEvents(params).then((response) => {
+    options["serviceType"] = "pedestrian";
+    options["eventType"] = mappings.eventTypes.PEDEVT;
+    options["startTime"] = startTime;
+    options["endTime"] = endTime;
+    this.getEvents(options).then((response) => {
       resolve(response);
-    });
-  });
-};
+    })
+  })
+}
 module.exports = PedestrianAsset;

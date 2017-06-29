@@ -64,6 +64,7 @@ function findAvailability(parkingSpot, boundary1, boundary2, options) {
 
       var vIn;
       var vOut;
+
       asset.listVehiculesIn(startTime, endTime, options).then((response) => {
         vIn = response;
         asset.listVehiculesOut(startTime, endTime, options).then((response) => {

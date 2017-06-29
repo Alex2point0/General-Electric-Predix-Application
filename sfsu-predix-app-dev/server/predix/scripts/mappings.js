@@ -1,8 +1,8 @@
-/** Script ACLs do not delete 
- read=nobody 
+/** Script ACLs do not delete
+ read=nobody
 write=nobody
-execute=authenticated 
-  **/ 
+execute=authenticated
+  **/
 module.exports = {
   nodeTypes: {
 
@@ -25,6 +25,7 @@ module.exports = {
   PKIN: "PKIN", // vehicles entering parking areas within the boundaries
   PKOUT: "PKOUT", // vehicles exiting parking areas within the boundaries
   SFIN: "SFIN", //pedestrians entering monitored areas within the boundaries
+  PEDEVT: "PEDEVT",
   SFOUT: "SFOUT", //pedestrians exiting monitored areas within the boundaries
   TFEVT: "TFEVT", // traffic flow data
   ENCHG: "ENCHG", // Changed environmental conditions, such as temperature
