@@ -1,0 +1,281 @@
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+<link rel="import" href="../../bower_components/px-sample-cards/blank-card.html">
+<link rel="import" href="../../bower_components/px-view-header/px-view-header.html">
+<dom-module id="parking-space">
+  <template>
+    <style>
+      /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+      #map {
+        height: 100%;
+      }
+      /* Optional: Makes the sample page fill the window. */
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #description {
+        font-family: Roboto;
+        font-size: 15px;
+        font-weight: 300;
+      }
+
+      #infowindow-content .title {
+        font-weight: bold;
+      }
+
+      #infowindow-content {
+        display: none;
+      }
+
+      #map #infowindow-content {
+        display: inline;
+      }
+
+      .pac-card {
+        margin: 10px 10px 0 0;
+        border-radius: 2px 0 0 2px;
+        box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        outline: none;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        background-color: #fff;
+        font-family: Roboto;
+      }
+
+      #pac-container {
+        padding-bottom: 12px;
+        margin-right: 12px;
+      }
+
+      .pac-controls {
+        display: inline-block;
+        padding: 5px 11px;
+      }
+
+      .pac-controls label {
+        font-family: Roboto;
+        font-size: 13px;
+        font-weight: 300;
+      }
+
+      #pac-input {
+        background-color: #fff;
+        font-family: Roboto;
+        font-size: 15px;
+        font-weight: 300;
+        margin-left: 12px;
+        padding: 0 11px 0 13px;
+        text-overflow: ellipsis;
+        width: 400px;
+      }
+
+      #pac-input:focus {
+        border-color: #4d90fe;
+      }
+
+      #title {
+        color: #fff;
+        background-color: #4d90fe;
+        font-size: 25px;
+        font-weight: 500;
+        padding: 6px 12px;
+      }
+      .vertical-flex {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .horizontal-flex {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-direction: row;
+      }
+      .details {
+        background: white;
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        flex-direction: column;
+        width: 200px;
+        height: 500px;
+        display: none;
+      }
+    </style>
+    <div>
+      <div id="title">
+        Enter An Address
+      </div>
+      <div id="type-selector" class="pac-controls">
+        <input type="hidden" name="type" id="changetype-all" checked="checked">
+      </div>
+    </div>
+    <div id="pac-container">
+      <input id="pac-input" type="text"
+             placeholder="Enter a location">
+    </div>
+    </div>
+    <div class="vertical-flex">
+      <div class="horizontal-flex">
+        <div id="map" style="width: 500px; height: 500px;"></div>
+        <div class="details">
+          <div>Available Parking Spaces: <span class="aps"></span></div>
+          <div>Availability Percentage : <span class="ap"></span></div>
+          <div>Weather Summery : <span class="summary"></span></div>
+          <div>Max Temperature : <span class="temperatureMax"></span></div>
+          <div>Min Temperature : <span class="temperatureMin"></span></div>
+          <div>Wind Speed : <span class="windSpeed"></span></div>
+          <div>Humidity : <span class="humidity"></span></div>
+
+        </div>
+      </div>
+    </div>
+    <div id="infowindow-content">
+      <img src="" width="16" height="16" id="place-icon">
+      <span id="place-name"  class="title"></span><br>
+      <span id="place-address"></span>
+    </div>
+    <script>
+      // This example requires the Places library. Include the libraries=places
+      // parameter when you first load the API. For example:
+      // <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places">
+      const http = new XMLHttpRequest();
+      var availableParking = 0;
+      var totalParkingSpaces = 20;
+      function initMap() {
+        var card = document.getElementById('pac-card');
+        var input = document.getElementById('pac-input');
+        var autocomplete = new google.maps.places.Autocomplete(input);
+        autocomplete.addListener('place_changed', function() {
+          var place = autocomplete.getPlace();
+          if (!place.geometry) {
+            // User entered the name of a Place that was not suggested and
+            // pressed the Enter key, or the Place Details request failed.
+            window.alert("No details available for input: '" + place.name + "'");
+            return;
+          }
+          var lat = place.geometry.location.lat();
+          var lng = place.geometry.location.lng();
+          var geocoder = new google.maps.Geocoder;
+          var map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 15,
+            center: {
+              lat: lat,
+              lng: lng
+            }
+          });
+          for (var i = 0; i < 20; i++) {
+            var myLatLng = randomGeo({lat: lat, lng: lng}, 200);
+            setMarker(myLatLng, map, geocoder);
+          }
+          $('.details').show();
+          $('.aps').html(availableParking);
+          $('.ap').html(Math.round((availableParking/totalParkingSpaces)*100) + '%')
+          var request = {
+            url: 'https://api.darksky.net/forecast/59e81c3cfd57f90ffd1a4a206dc134b8/' + lat +',' + lng,
+            type: 'GET',
+            dataType: 'jsonp',
+          };
+          $.ajax({
+            url: request.url,
+            type: 'GET',
+            dataType: 'jsonp',
+            jsonpCallback: 'past2callback',
+            error: errorHandler,
+            cache: true
+          }).then((response) => {
+            var todayWeatherData = response.daily.data[0];
+            $('.summary').html(todayWeatherData.summary);
+            $('.temperatureMax').html(todayWeatherData.temperatureMax + 'ºF');
+            $('.temperatureMin').html(todayWeatherData.temperatureMin + 'ºF');
+            $('.windSpeed').html(todayWeatherData.windSpeed + 'mph');
+            $('.humidity').html(todayWeatherData.humidity * 100 + '%')
+          })var request = {
+            url: 'https://api.darksky.net/forecast/59e81c3cfd57f90ffd1a4a206dc134b8/' + lat +',' + lng,
+            type: 'GET',
+            dataType: 'jsonp',
+          };
+          $.ajax({
+            url: request.url,
+            type: 'GET',
+            dataType: 'jsonp',
+            jsonpCallback: 'past2callback',
+            error: errorHandler,
+            cache: true
+          }).then((response) => {
+            var todayWeatherData = response.daily.data[0];
+            $('.summary').html(todayWeatherData.summary);
+            $('.temperatureMax').html(todayWeatherData.temperatureMax + 'ºF');
+            $('.temperatureMin').html(todayWeatherData.temperatureMin + 'ºF');
+            $('.windSpeed').html(todayWeatherData.windSpeed + 'mph');
+            $('.humidity').html(todayWeatherData.humidity * 100 + '%')
+          })
+        });
+      }
+      function randomGeo(center, radius) {
+        var y0 = center.lat;
+        var x0 = center.lng;
+        var rd = radius / 111300; //about 111300 meters in one degree
+
+        var u = Math.random();
+        var v = Math.random();
+
+        var w = rd * Math.sqrt(u);
+        var t = 2 * Math.PI * v;
+        var x = w * Math.cos(t);
+        var y = w * Math.sin(t);
+
+        //Adjust the x-coordinate for the shrinking of the east-west distances
+        var xp = x / Math.cos(y0);
+
+        var newlat = y + y0;
+        var newlon = x + x0;
+        var newlon2 = xp + x0;
+
+        return {
+          'lat': Number(newlat.toFixed(5)),
+          'lng': Number(newlon.toFixed(5)),
+        };
+      }
+      var errorHandler = function (e) {
+        console.log(e.status + ' ' + e.statusText);
+      };
+      function setMarker(myLatLng, map, geocoder) {
+        var infowindow = new google.maps.InfoWindow;
+        var title;
+        var icon;
+        if (Math.random() >= 0.5) {
+          title = 'Space Available';
+          icon = 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+          availableParking += 1;
+        } else {
+          title = 'Space Not Available';
+          icon = 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+        }
+        var marker = new google.maps.Marker({
+          position: myLatLng,
+          map: map,
+          title: title,
+          icon: icon
+        });
+        marker.addListener('click', function() {
+          infowindow.open(map, marker);
+        });
+        infowindow.setContent(title);
+      }
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAXd8KlVO4CH52NrFf1yrWQEbPJAd0Zjg4&libraries=places&callback=initMap"
+            async defer></script>
+  </template>
+  <script>
+    Polymer({
+      is: 'parking-space',
+      properties: {},
+      ready: function() {
+      }
+    });
+  </script>
+</dom-module>

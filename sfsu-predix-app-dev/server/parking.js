@@ -1,8 +1,8 @@
-/** Script ACLs do not delete
- read=nobody
+/** Script ACLs do not delete 
+ read=nobody 
 write=nobody
-execute=anonymous
-  **/
+execute=anonymous 
+  **/ 
   var factory = require("./predix/scripts/factory");
 
 // get a token for clientId == parking2
@@ -10,38 +10,44 @@ execute=anonymous
     username: 'hackathon',
     userPassword: '@hackathon'
   });
-  predix.initializeToken().then(() => {
-    // get an instance of ParkingManager
-    var parkingManager = predix.getParkingManager();
+var report = [];
 
-    // Specify location of the parking slot
-    var boundary1 = "32.123:-117";
-    var boundary2 = "32.714983:-117.158012";
+module.exports = function (lat, lng) {
+  return new Promise((resolve, reject) => {
+    predix.initializeToken().then(() => {
+      // get an instance of ParkingManager
+      var parkingManager = predix.getParkingManager();
 
-    // To simplify, just get the first 20 parking spots at this location (if any)
-    var options = {
-      "page": 0,
-      "size": 20
-    };
+      // Specify location of the parking slot
+      var boundary1 = "32.123:-117";
+      var boundary2 = "32.714983:-117.158012";
+      // var boundary1 = lat.toString() + ':' + lng.toString();
+      // var boundary2 = (Number(lat) + .0005).toString() + ':' + (Number(lng) + .0005).toString();
 
-    parkingManager.listParkingSpots(boundary1, boundary2, options).then((result) => {
-      // iterate through the list of parking spot and determine each parking spot availability
-      var report = [];
-      var promises = [];
-      for (var i = 0; i < result.locations.length; i++) {
+      // To simplify, just get the first 20 parking spots at this location (if any)
+      var options = {
+        "page": 0,
+        "size": 20
+      };
 
-        var parkingSpot  =  result.locations[i];
-        promises.push(findAvailability(parkingSpot, boundary1, boundary2, options))
-      }
-      Promise.all(promises).then((responses) => {
-        responses.forEach((response) => {
-          report.push(response);
-        });
-        return report;
-      })
+      parkingManager.listParkingSpots(boundary1, boundary2, options).then((result) => {
+        // iterate through the list of parking spot and determine each parking spot availability
+        var promises = [];
+        for (var i = 0; i < result.locations.length; i++) {
+
+          var parkingSpot  =  result.locations[i];
+          promises.push(findAvailability(parkingSpot, boundary1, boundary2, options))
+        }
+        Promise.all(promises).then((responses) => {
+          responses.forEach((response) => {
+            report.push(response);
+          });
+          resolve(report);
+        })
+      });
     });
-  });
-
+  })
+}
 /*
  * For a given parking spot, get first monitoring device. Ask the device for the last IN and OUT events
  * If OUT.timstamp > IN.timestamp, then this parking spot is free
@@ -64,7 +70,6 @@ function findAvailability(parkingSpot, boundary1, boundary2, options) {
 
       var vIn;
       var vOut;
-
       asset.listVehiculesIn(startTime, endTime, options).then((response) => {
         vIn = response;
         asset.listVehiculesOut(startTime, endTime, options).then((response) => {

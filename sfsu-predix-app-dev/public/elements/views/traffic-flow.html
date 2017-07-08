@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+</head>
+<body>
+
+<style>
+  /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+
+  #map {
+    height: 90%;
+  }
+  /* Optional: Makes the sample page fill the window. */
+
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  #description {
+    font-family: Roboto;
+    font-size: 15px;
+    font-weight: 300;
+  }
+
+  #infowindow-content .title {
+    font-weight: bold;
+  }
+
+  #infowindow-content {
+    display: none;
+  }
+
+  #map #infowindow-content {
+    display: inline;
+  }
+
+  .pac-card {
+    margin: 10px 10px 0 0;
+    border-radius: 2px 0 0 2px;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    outline: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    background-color: #fff;
+    font-family: Roboto;
+  }
+
+  #pac-container {
+    padding-bottom: 12px;
+    margin-right: 12px;
+  }
+
+  .pac-controls {
+    display: inline-block;
+    padding: 5px 11px;
+  }
+
+  .pac-controls label {
+    font-family: Roboto;
+    font-size: 13px;
+    font-weight: 300;
+  }
+
+  #pac-input {
+    background-color: #fff;
+    font-family: Roboto;
+    font-size: 15px;
+    font-weight: 300;
+    margin-left: 12px;
+    padding: 0 11px 0 13px;
+    text-overflow: ellipsis;
+    width: 400px;
+  }
+
+  #pac-input:focus {
+    border-color: #4d90fe;
+  }
+
+  #title {
+    color: #fff;
+    background-color: #4d90fe;
+    font-size: 25px;
+    font-weight: 500;
+    padding: 6px 12px;
+  }
+
+  .vertical-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .horizontal-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-direction: row;
+  }
+
+  .details {
+    background: white;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    flex-direction: column;
+    width: 200px;
+    height: 500px;
+    display: none;
+  }
+
+</style>
+<div id="map"></div>
+<script>
+  // This example requires the Places library. Include the libraries=places
+  // parameter when you first load the API. For example:
+  // <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places">
+
+  function initMap() {
+    var promises = [];
+    var lat = 37.721831;
+    var lng = -122.477963;
+    var geocoder = new google.maps.Geocoder;
+    var map = new google.maps.Map(document.getElementById('map'), {
+      zoom: 16,
+      center: {
+        lat: lat,
+        lng: lng
+      }
+    });
+    for (var i = 0; i < 5; i++) {
+        promises.push(randomGeo({lat: lat, lng: lng}, 600))
+    }
+    Promise.all(promises).then((responses) =>{
+        responses.forEach((response)=> {
+            setCamera(response, map, geocoder);
+        })
+    })
+  }
+
+  function randomGeo(center, radius) {
+    return new Promise((resolve, reject) =>
+    {
+      var y0 = center.lat;
+      var x0 = center.lng;
+      var rd = radius / 111300; //about 111300 meters in one degree
+
+      var u = Math.random();
+      var v = Math.random();
+
+      var w = rd * Math.sqrt(u);
+      var t = 2 * Math.PI * v;
+      var x = w * Math.cos(t);
+      var y = w * Math.sin(t);
+
+      //Adjust the x-coordinate for the shrinking of the east-west distances
+      var xp = x / Math.cos(y0);
+
+      var newlat = y + y0;
+      var newlon = x + x0;
+      var newlon2 = xp + x0;
+      snapCoords(newlat, newlon).then(function(response){
+        var variable = response;
+        resolve(response);
+      });
+//      resolve(streetCoords);
+
+    });
+  }
+  function setCamera(info, map, geocoder) {
+    var infowindow = new google.maps.InfoWindow;
+    var title = 'Traffic Camera';
+    var marker = new google.maps.Marker({
+      position: {lat: info.lat, lng: info.lng},
+      map: map,
+      title: title,
+      icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+    });
+    marker.addListener('click', function() {
+      infowindow.open(map, marker);
+    });
+    infowindow.setContent(title);
+  }
+
+  function snapCoords(lat, lng){
+    return new Promise((resolve, reject) =>{
+      var request = {
+        url: 'https://roads.googleapis.com/v1/nearestRoads?points=' + lat +',' + lng +'&key=AIzaSyAoDE7IM9L5aMe6K6m4N47WzvUFCDMztJM',
+        type: 'GET',
+        dataType: 'jsonp',
+      };
+      $.ajax({
+        url: request.url,
+        type: 'GET',
+        dataType: 'jsonp',
+        error: errorHandler,
+        cache: true
+      }).then((response) => {
+        var simData = genData();
+        if (Array.isArray(response.snappedPoints))
+        {
+          if (response.snappedPoints.length > 0) {
+            var snappedPoints = response.snappedPoints[0].location;
+
+            resolve ({
+              'lat': snappedPoints.latitude,
+              'lng': snappedPoints.longitude,
+              'direction': simData.direction,
+              'vehicle_count' : simData.vehicle_count,
+              'count' : simData.count,
+            });
+          }
+          else{
+            console.log("Rejected because array length is less than 0");
+            resolve({
+              'lat': lat,
+              'lng': lng,
+              'direction': simData.direction,
+              'vehicle_count' : simData.vehicle_count,
+              'count' : simData.count,
+            });
+          }
+        }
+        else{
+            console.log("Rejected because object is undefined or not an array");
+            resolve({
+              'lat': lat,
+              'lng': lng,
+              'direction': simData.direction,
+              'vehicle_count' : simData.vehicle_count,
+              'count' : simData.count,
+            });
+        }
+
+      }).catch(e => {
+          console.log(e);
+      });
+    });
+
+  }
+  var errorHandler = function(e) {
+    console.log("Error: " + e.status + ' ' + e.statusText);
+  };
+
+  function genData(){
+    var endDate = new Date();
+    var currentHour = endDate.getHours();
+    var direction = 0;
+    var count = Math.floor(Math.random()*20);
+    var vehicle_count = Math.floor(Math.random()*20);
+    if(currentHour > 8 && currentHour <10)
+    {
+      vehicle_count += 60;
+      count = vehicle_count-(count+15);
+    }
+    else if(currentHour > 10 && currentHour < 16)
+    {
+      vehicle_count += 45;
+      count = vehicle_count-(count+35);
+      if(count < 0)
+      {
+          count = Math.abs(count);
+          direction = 180;
+      }
+    }
+    else if(currentHour > 16 && currentHour < 20)
+    {
+      direction = Math.floor(Math.random())+180;
+      var bin_count = Math.random();
+      vehicle_count += 30+bin_count*20;
+      count = vehicle_count-(count+15);
+    }
+    else if(currentHour > 20 && currentHour < 23)
+    {
+      vehicle_count += 10;
+      count = vehicle_count-(count);
+      if(count < 0)
+      {
+        count = Math.abs(count);
+      }
+      direction = 180;
+    }
+    else
+    {
+      direction = 180*Math.floor(Math.random());
+      count = Math.abs((vehicle_count-count));
+    }
+    console.log("Vehicle Count: " + vehicle_count);
+    console.log("Count: " + count);
+    console.log("Direction: " + direction);
+    return{
+      'vehicle_count': vehicle_count,
+      'direction': direction,
+      'count': count,
+    }
+  }
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAXd8KlVO4CH52NrFf1yrWQEbPJAd0Zjg4&libraries=places&callback=initMap" async defer></script>
+
+
+</body>
+</html>
